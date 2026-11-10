@@ -18,12 +18,13 @@ TC = f"{NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin"
 CC = f"{TC}/armv7a-linux-androideabi21-clang"
 
 R = [f"r{i}" for i in range(12)]
+RI = [f"r{i}" for i in range(10)]   # operands of random ALU ops (r10/r11 are address temps)
 CONDS = ["eq", "ne", "hs", "lo", "mi", "pl", "vs", "vc", "hi", "ls", "ge", "lt", "gt", "le"]
 SCRATCH = 256
 STATE = 12 * 4 + 4 + 32 * 8 + SCRATCH + 4   # regs, apsr, d regs, scratch, fpscr
 
 
-def rr(): return random.choice(R)
+def rr(): return random.choice(RI)
 def imm8(): return random.choice([0, 1, 2, 7, 31, 32, 255, 0x80, 0xff00, 0xff000000, 0x3fc, 0x10000, 0xab00ab00 if False else 0x2a0])
 
 
@@ -166,7 +167,8 @@ def gen_neon(thumb):
         n = random.randint(1, 7)
         return f"{random.choice(['vshl.i16', 'vshr.s16', 'vshr.u16', 'vsra.s16'])} {qreg()}, {qreg()}, #{n}"
     if k == 8:
-        return f"{random.choice(['vzip', 'vuzp', 'vtrn'])}.{random.choice(['8', '16', '32'])} {dreg()}, {dreg()}".replace(".32 d", ".16 d") if random.random() < .3 else \
+        a, b = random.sample(range(32), 2)
+        return f"{random.choice(['vzip', 'vuzp', 'vtrn'])}.{random.choice(['8', '16'])} d{a}, d{b}" if random.random() < .3 else \
             f"{random.choice(['vzip', 'vuzp', 'vtrn'])}.{random.choice(['8', '16', '32'])} q{random.randint(0, 7)}, q{random.randint(8, 15)}"
     if k == 9:
         return random.choice([f"vmovl.{random.choice(['s8', 'u8', 's16', 'u16', 's32', 'u32'])} {qreg()}, {dreg()}",
@@ -303,6 +305,8 @@ def cmp_states(a, b):
     diffs = []
     names = [f"r{i}" for i in range(12)] + ["apsr"]
     for i in range(13):
+        if i == 11:
+            continue        # r11 holds scratch addresses (layout differs between runs)
         x, y = struct.unpack_from("<I", a, 4 * i)[0], struct.unpack_from("<I", b, 4 * i)[0]
         if x != y:
             diffs.append(f"{names[i]}: qemu={x:#010x} recomp={y:#010x}")
