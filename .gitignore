@@ -1,0 +1,17 @@
+# build outputs
+build/
+__pycache__/
+*.pyc
+missing_entries.txt
+
+# NEVER commit game files: users supply their own copy
+*.apk
+*.obb
+*.so
+game/
+generated/
+android/app/src/main/cpp/generated/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
